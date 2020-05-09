@@ -1,17 +1,12 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.HttpsPolicy;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using UserManagement.Models;
+using UserManagement.Models.DataManager;
+using UserManagement.Models.Repository;
 
 namespace UserManagement
 {
@@ -28,6 +23,7 @@ namespace UserManagement
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddDbContext<UserContext>(opts => opts.UseSqlServer(Configuration["ConnectionString:UserDB"]));
+            services.AddScoped<IDataRepository<User>, UserManager>();
             services.AddControllers();
         }
 

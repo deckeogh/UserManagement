@@ -11,6 +11,7 @@ namespace UserManagement.Models
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        public long Id { get; set; }
         public string Name { get; set; }
         public string Surnames { get; set; }
         public string Email { get; set; }
