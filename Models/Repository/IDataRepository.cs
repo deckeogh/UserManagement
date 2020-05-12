@@ -8,7 +8,7 @@ namespace UserManagement.Models.Repository
     public interface IDataRepository<TEntity>
     {
         IEnumerable<TEntity> GetAll();
-        TEntity Get(long id);
+        TEntity GetById(long id);
         void Add(TEntity entity);
         void Update(TEntity user, TEntity entity);
         void Delete(TEntity entity);
