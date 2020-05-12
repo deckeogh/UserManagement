@@ -1,8 +1,10 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.Swagger.Annotations;
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net;
+using UserManagement.Helpers;
 using UserManagement.Models;
 using UserManagement.Models.DataManager;
 using UserManagement.Models.Repository;
@@ -26,87 +28,133 @@ namespace UserManagement.Controllers
         [HttpGet
         , SwaggerOperation(Tags = new[] { "api/User" })]
         /// <response code="HttpStatusCode.OK">Item created successfully.</response>
-        [ProducesResponseType(typeof(List<User>), (int)HttpStatusCode.OK)]
-        /// <response code="HttpStatusCode.BadRequest">When referred to a valid User.</response>
-        [ProducesResponseType(typeof(string), (int)HttpStatusCode.BadRequest)]
+        [ProducesResponseType(typeof(List<User>), StatusCodes.Status200OK)]
+        /// <response code="HttpStatusCode.BadRequest">When a problem occured while referring to a valid User.</response>
+        [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
         /// <response code="HttpStatusCode.NotFound">When no users were found.</response>
-        [ProducesResponseType((int)HttpStatusCode.NotFound)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status404NotFound)]
         public IActionResult GetAll()
         {
-            var users = _dataRepository.GetAll();
-            var userDetails = users.Select(x =>
-            new UserDetails()
+            try
             {
-                Id = x.Id,
-                Name = x.Name,
-                Country = x.Country,
-                Surnames = x.Surnames,
-                Phone = x.Phone,
-                Email = x.Email,
-                PostCode = x.PostCode,
-            });
+                var allUsers = _dataRepository.GetAll();
 
-            return Ok(userDetails);
+                if (allUsers == null)
+                    return new NotFoundResult();
+
+                var usersDetails = allUsers.Select(user => new {
+                    user.Id,
+                    user.Name,
+                    user.Country,
+                    user.Surnames,
+                    user.Phone,
+                    user.Email,
+                    user.PostCode,
+                });
+                return Ok(usersDetails);
+            }
+            catch (Exception)
+            {
+                return new BadRequestResult();
+            }
+
         }
 
         /// <summary>
-        /// Gets the specified identifier.
+        /// Gets a user's details given it's id.
         /// </summary>
-        /// <param name="id">The identifier.</param>
-        /// <returns></returns>
+        /// <param name="id">The user id.</param>
+        /// <returns>The user's details</returns>
         [HttpGet("{id}", Name = "Get")
-        , SwaggerResponse(HttpStatusCode.OK, "When referred to a valid User", typeof(User))
-        , SwaggerResponse(HttpStatusCode.NotFound, "When referred to an invalid user id")
         , SwaggerOperation(Tags = new[] { "api/User" })]
+        [ProducesResponseType(typeof(User), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status404NotFound)]
         public IActionResult GetById(long id)
         {
-            UserDetails user = _dataRepository.GetById(id);
-            if (user == null)
+            try
             {
-                return NotFound("The User could not be found");
+                var user = _dataRepository.GetById(id);
+                if (user == null)
+                {
+                    return NotFound("The User could not be found");
+                }
+                var userDetails = new {
+                    user.Id,
+                    user.Name,
+                    user.Country,
+                    user.Surnames,
+                    user.Phone,
+                    user.Email,
+                    user.PostCode
+                };
+                return Ok(userDetails);
             }
-            return Ok(user);
+            catch (Exception)
+            {
+                return new BadRequestResult();
+            }
         }
 
         /// <summary>
-        /// Posts the specified user.
+        /// Creates the specified user.
         /// </summary>
-        /// <param name="user">The user.</param>
-        /// <returns></returns>
-        [HttpPost
-        , SwaggerResponse(HttpStatusCode.OK, type: typeof(User))
-        , SwaggerResponse(HttpStatusCode.InternalServerError)
-        , SwaggerResponse(HttpStatusCode.Forbidden, "When the current user is not allowed ")
-        , SwaggerResponse(HttpStatusCode.BadRequest, "When input is invalid", typeof(User))
-        , SwaggerResponse(HttpStatusCode.NotFound, "When referred to an invalid user id")
-        , SwaggerOperation(Tags = new[] { "api/User" })]
+        /// <param name="user">The user to be created.</param>
+        /// <returns>A newly created <see cref="User"/>></returns>
+        [HttpPost, SwaggerOperation(Tags = new[] { "api/User" })]
+        [ProducesResponseType(typeof(User), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
         public IActionResult Register([FromBody] User user)
         {
             if (user == null)
+                return BadRequest("Invalid data. Please check your input and try again.");
+
+            var password = user.Password;
+            if (password == null)
+                return BadRequest("Invalid password. Please try again.");
+            else
+                user.Password = StringCipherHelper.Encrypt(password, "_UsrMgt");
+
+            var success = _dataRepository.Add(user);
+
+            if (!success)
+                return BadRequest("An error occured. Please try again.");
+
+            return CreatedAtRoute(
+                "get",
+                new { Id = user.Id },
+                new
+                {
+                    user.Id,
+                    user.Name,
+                    user.Country,
+                    user.Surnames,
+                    user.Phone,
+                    user.Email,
+                    Password = StringCipherHelper.Decrypt(user.Password, "_UsrMgt"),
+                    user.PostCode
+                });
+        }
+
+        [HttpPost
+        , Route("Login")
+        , SwaggerOperation(Tags = new[] { "api/User" })]
+        [ProducesResponseType(typeof(User), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status404NotFound)]
+        public IActionResult Login([FromBody] LoginDetails details)
+        {
+            if (details == null || string.IsNullOrWhiteSpace(details.Email) || string.IsNullOrWhiteSpace(details.Password))
             {
                 return BadRequest("Invalid data. Please check your input and try again.");
             }
-            _dataRepository.Add(user);
-            return CreatedAtRoute("Get", new { Id = user.Id }, user);
-        }
+            var password = StringCipherHelper.Decrypt(details.Password, "_UsrMgt");
 
-        //[HttpPost
-        //, Route("Login")
-        //, SwaggerResponse(HttpStatusCode.OK, type: typeof(User))
-        //, SwaggerResponse(HttpStatusCode.InternalServerError)
-        //, SwaggerResponse(HttpStatusCode.Forbidden, "When the current user is not allowed ")
-        //, SwaggerResponse(HttpStatusCode.BadRequest, "When input is invalid", typeof(User))
-        //, SwaggerResponse(HttpStatusCode.NotFound, "When referred to an invalid user id")
-        //, SwaggerOperation(Tags = new[] { "api/User" })]
-        //public IActionResult Login([FromBody] LoginDetails details)
-        //{
-        //    if (details == null)
-        //    {
-        //        return BadRequest("Invalid data. Please check your input and try again.");
-        //    }
-        //    var result = _dataRepository.Login(details);
-        //    return Ok(result);
-        //}
+            var allUsers = _dataRepository.GetAll();
+            var success = allUsers.Any(x => x.Email == details.Email && x.Password == password);
+            
+            return Ok();
+        }
 
         /// <summary>
         /// Puts the specified identifier.
@@ -115,23 +163,43 @@ namespace UserManagement.Controllers
         /// <param name="user">The user.</param>
         /// <returns></returns>
         [HttpPut("{id}")
-        , SwaggerResponse(HttpStatusCode.OK, "A user was updated", typeof(User))
-        , SwaggerResponse(HttpStatusCode.BadRequest, "When input is invalid", typeof(User))
-        , SwaggerResponse(HttpStatusCode.NotFound, "When referred to an invalid user id")
         , SwaggerOperation(Tags = new[] { "api/User" })]
-        public IActionResult Update(long id, [FromBody] User user)
+        [ProducesResponseType(typeof(User), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status404NotFound)]
+        public IActionResult Update(long id, [FromBody] UserUpdateRequest user)
         {
-            if (user == null)
+            try
             {
-                return BadRequest("Invalid data. Please check your input and try again.");
+                if (user == null)
+                    return BadRequest("Invalid data. Please check your input and try again.");
+
+                User userToUpdate = _dataRepository.GetById(id);
+                if (userToUpdate == null)
+                    return NotFound("User not found.");
+
+                if (user.Password == userToUpdate.Password)
+                {
+                    var newDetails = new User()
+                    {
+                        Name = user.Name,
+                        Surnames = user.Surnames,
+                        Email = user.Email,
+                        Password = StringCipherHelper.Encrypt(user.NewPassword, "_UsrMgt"),
+                        Country = user.Country,
+                        Phone = user.Phone,
+                        PostCode = user.PostCode
+                    };
+                    _dataRepository.Update(userToUpdate, newDetails);
+                    return NoContent();
+                }
+                else
+                    return BadRequest("Invalid password");
             }
-            User userToUpdate = _dataRepository.GetById(id);
-            if (userToUpdate == null)
+            catch (Exception)
             {
-                return BadRequest("User not found.");
+                return BadRequest("An error occured while attempting to update the user. Please try again");
             }
-            _dataRepository.Update(userToUpdate, user);
-            return NoContent();
         }
 
         /// <summary>
@@ -139,10 +207,10 @@ namespace UserManagement.Controllers
         /// </summary>
         /// <param name="id">The identifier.</param>
         /// <returns></returns>
-        [HttpDelete("{id}")
-        , SwaggerResponse(HttpStatusCode.OK, "The user was deleted")
-        , SwaggerResponse(HttpStatusCode.BadRequest, "The user was not deleted due to argument validation")
-        , SwaggerOperation(Tags = new[] { "api/User" })]
+        [HttpDelete("{id}"), SwaggerOperation(Tags = new[] { "api/User" })]
+        [ProducesResponseType(typeof(User), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status404NotFound)]
         public IActionResult Delete(long id)
         {
             User userToDelete = _dataRepository.GetById(id);
@@ -150,7 +218,9 @@ namespace UserManagement.Controllers
             {
                 return BadRequest("User not found.");
             }
-            _dataRepository.Delete(userToDelete);
+            var success = _dataRepository.Delete(userToDelete);
+            if (!success)
+                return BadRequest("A problem was encounter while attemptint to delete the resource");
             return NoContent();
         }
     }

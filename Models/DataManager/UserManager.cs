@@ -1,4 +1,7 @@
-﻿using System.Collections.Generic;
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using UserManagement.Helpers;
 using UserManagement.Models.Repository;
@@ -45,19 +48,23 @@ namespace UserManagement.Models.DataManager
         /// <returns></returns>
         public IEnumerable<User> GetAll()
         {
-            var temp = _userContext.Users.ToList();
             return _userContext.Users.ToList();
         }
 
         /// <summary>Adds the specified user.</summary>
         /// <param name="entity">The user.</param>
-        public void Add(User entity)
+        public bool Add(User entity)
         {
-            var password = entity.Password;
-            if (password != null)
-                entity.Password = StringCipherHelper.Encrypt(password, "_UsrMgt");
-            _userContext.Users.Add(entity);
-            _userContext.SaveChanges();
+            try
+            {
+                _userContext.Users.Add(entity);
+                _userContext.SaveChanges();
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
         }
 
         /// <summary>
@@ -65,36 +72,39 @@ namespace UserManagement.Models.DataManager
         /// </summary>
         /// <param name="user">The user.</param>
         /// <param name="entity">The entity.</param>
-        public void Update(User user, User entity)
+        public bool Update(User user, User entity)
         {
-            user.Name     = entity.Name;
-            user.Surnames = entity.Surnames;
-            user.Email    = entity.Email;
-            user.Password = entity.Password;
-            user.Country  = entity.Country;
-            user.Phone    = entity.Phone;
-            user.PostCode = entity.PostCode;
+            try
+            {
+                user.Name = entity.Name;
+                user.Surnames = entity.Surnames;
+                user.Email = entity.Email;
+                user.Password = entity.Password;
+                user.Country = entity.Country;
+                user.Phone = entity.Phone;
+                user.PostCode = entity.PostCode;
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
         }
 
         /// <summary>Deletes the specified entity.</summary>
         /// <param name="entity">The entity.</param>
-        public void Delete(User entity)
+        public bool Delete(User entity)
         {
-            _userContext.Users.Remove(entity);
-            _userContext.SaveChanges();
-        }
-
-        public bool Login(LoginDetails details)
-        {
-            if (details == null || string.IsNullOrWhiteSpace(details.Email) || string.IsNullOrWhiteSpace(details.Password))
+            try
+            {
+                _userContext.Users.Remove(entity);
+                _userContext.SaveChanges();
+                return true;
+            }
+            catch (Exception)
+            {
                 return false;
-            var password = StringCipherHelper.Decrypt(details.Password, "_UsrMgt");
-            return _userContext.Users.Any(x => x.Email == details.Email && x.Password == password);
-        }
-
-        public User Get(long id)
-        {
-            throw new System.NotImplementedException();
+            }
         }
     }
 }

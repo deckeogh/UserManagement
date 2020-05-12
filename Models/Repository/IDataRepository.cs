@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Threading.Tasks;
 
 namespace UserManagement.Models.Repository
@@ -9,8 +10,8 @@ namespace UserManagement.Models.Repository
     {
         IEnumerable<TEntity> GetAll();
         TEntity GetById(long id);
-        void Add(TEntity entity);
-        void Update(TEntity user, TEntity entity);
-        void Delete(TEntity entity);
+        bool Add(TEntity entity);
+        bool Update(TEntity user, TEntity entity);
+        bool Delete(TEntity entity);
     }
 }
