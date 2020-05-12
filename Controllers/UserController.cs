@@ -136,26 +136,6 @@ namespace UserManagement.Controllers
                 });
         }
 
-        [HttpPost
-        , Route("Login")
-        , SwaggerOperation(Tags = new[] { "api/User" })]
-        [ProducesResponseType(typeof(User), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status401Unauthorized)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status404NotFound)]
-        public IActionResult Login([FromBody] LoginDetails details)
-        {
-            if (details == null || string.IsNullOrWhiteSpace(details.Email) || string.IsNullOrWhiteSpace(details.Password))
-            {
-                return BadRequest("Invalid data. Please check your input and try again.");
-            }
-            var password = StringCipherHelper.Decrypt(details.Password, "_UsrMgt");
-
-            var allUsers = _dataRepository.GetAll();
-            var success = allUsers.Any(x => x.Email == details.Email && x.Password == password);
-            
-            return Ok();
-        }
-
         /// <summary>
         /// Puts the specified identifier.
         /// </summary>
@@ -222,6 +202,29 @@ namespace UserManagement.Controllers
             if (!success)
                 return BadRequest("A problem was encounter while attemptint to delete the resource");
             return NoContent();
+        }
+
+        [HttpPost, Route("Login")
+        , SwaggerOperation(Tags = new[] { "api/Login" })]
+        [ProducesResponseType(typeof(User), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
+        public IActionResult Login([FromBody] LoginDetails details)
+        {
+            if (details == null || string.IsNullOrWhiteSpace(details.Email) || string.IsNullOrWhiteSpace(details.Password))
+            {
+                return BadRequest("Invalid data. Please check your input and try again.");
+            }
+            var user = new User()
+            {
+                Email = details.Email,
+                Password = details.Password
+            };
+            var success = _dataRepository.Login(user);
+            if (success)
+                return Ok();
+            else
+                return Unauthorized();
         }
     }
 }

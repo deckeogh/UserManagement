@@ -13,5 +13,6 @@ namespace UserManagement.Models.Repository
         bool Add(TEntity entity);
         bool Update(TEntity user, TEntity entity);
         bool Delete(TEntity entity);
+        bool Login(TEntity entity);
     }
 }

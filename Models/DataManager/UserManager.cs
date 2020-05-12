@@ -106,5 +106,14 @@ namespace UserManagement.Models.DataManager
                 return false;
             }
         }
+
+        public bool Login(User details)
+        {
+            var allUsers = GetAll();
+            var success = allUsers.Any(x =>
+                x.Email == details.Email &&
+                StringCipherHelper.Decrypt(x.Password, "_UsrMgt") == details.Password);
+            return success;
+        }
     }
 }
