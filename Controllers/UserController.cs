@@ -196,7 +196,7 @@ namespace UserManagement.Controllers
             User userToDelete = _dataRepository.GetById(id);
             if (userToDelete == null)
             {
-                return BadRequest("User not found.");
+                return NotFound("User not found.");
             }
             var success = _dataRepository.Delete(userToDelete);
             if (!success)
