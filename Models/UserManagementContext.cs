@@ -6,12 +6,12 @@ using System.Threading.Tasks;
 
 namespace UserManagement.Models
 {
-    public class UserManagementContext : DbContext
+    public class UserContext : DbContext
     {
-        public UserManagementContext(DbContextOptions options)
+        public UserContext(DbContextOptions options)
             : base(options)
         { 
         }
-        public DbSet<Areas.Identity.Data.UserManagement> UserManagements { get; set; }
+        public DbSet<User> Users { get; set; }
     }
 }
